@@ -2,38 +2,26 @@ const authScreen = document.querySelector('#auth-screen');
 const appScreen = document.querySelector('#app-screen');
 const authForm = document.querySelector('#auth-form');
 const authMessage = document.querySelector('#auth-message');
-const serviceSelect = document.querySelector('#service-select'); // Substituiu o resourceSelect
-const appointmentForm = document.querySelector('#appointment-form'); // Substituiu o reservationForm
+const serviceSelect = document.querySelector('#service-select');
+const appointmentForm = document.querySelector('#appointment-form');
 const appointmentMessage = document.querySelector('#appointment-message');
 const appointmentsList = document.querySelector('#appointment-list');
 const emptyState = document.querySelector('#empty-state');
-const serviceForm = document.querySelector('#service-form'); // Substituiu o resourceForm (Master cadastra os serviços e valores)
-const userForm = document.querySelector('#user-form');
+const serviceForm = document.querySelector('#service-form');
 const dateStartFilter = document.querySelector('#date-start-filter');
 const dateEndFilter = document.querySelector('#date-end-filter');
 
 let currentUser = null;
-let services = []; // Lista de serviços (ex: Extensão de Cílios, Design de Sobrancelha)
-let appointments = []; // Agendamentos
-let users = [];
+let services = JSON.parse(localStorage.getItem('studio_services')) || [
+  { id: 1, nome: 'Extensão Volume Russo', valor: 120.00, duracao_minutos: 90 },
+  { id: 2, nome: 'Lash Lifting', valor: 90.00, duracao_minutos: 60 }
+];
+let appointments = JSON.parse(localStorage.getItem('studio_appointments')) || [];
+let users = JSON.parse(localStorage.getItem('studio_users')) || [
+  { id: 'admin-1', nome: 'Rodrigo Silva', email: 'prodrigosilvacel@gmail.com', senha: 'w118187', tipo: 'master' }
+];
 let authMode = 'login';
-let editingAppointmentId = null;
-let editingServiceId = null;
-let editingUserId = null;
 let toastTimer;
-
-async function api(url, options = {}) {
-  const response = await fetch(url, {
-    ...options,
-    headers: { 'Content-Type': 'application/json', ...options.headers },
-    body: options.body ? JSON.stringify(options.body) : undefined
-  });
-  const isJson = response.headers.get('content-type')?.includes('application/json');
-  const payload = response.status === 204 ? {} : isJson ? await response.json() : {};
-  if (!response.ok) throw new Error(payload.mensagem || 'Não foi possível concluir a solicitação.');
-  if (!isJson && response.status !== 204) throw new Error('O servidor respondeu fora da API. Atualize a página e tente novamente.');
-  return payload;
-}
 
 function setMessage(element, text, success = false) {
   element.textContent = text;
@@ -42,6 +30,7 @@ function setMessage(element, text, success = false) {
 
 function showToast(message) {
   const toast = document.querySelector('#toast');
+  if (!toast) return;
   toast.textContent = message;
   toast.classList.add('is-visible');
   clearTimeout(toastTimer);
@@ -99,6 +88,7 @@ function renderApp() {
 }
 
 function renderServices() {
+  if (!serviceSelect) return;
   const selected = serviceSelect.value;
   serviceSelect.innerHTML = '<option value="">Selecione um procedimento</option>' + services.map((service) => {
     const label = `${service.nome} — ${formatCurrency(service.valor)}`;
@@ -110,7 +100,8 @@ function renderServices() {
 }
 
 function renderAppointments() {
-  const filter = document.querySelector('#appointment-filter').value;
+  if (!appointmentsList) return;
+  const filter = document.querySelector('#appointment-filter')?.value || 'todos';
   const filtered = appointments.filter((item) => filter === 'todos' || item.servico_id == filter);
   const now = Date.now();
   const upcoming = appointments.filter((item) => new Date(item.data_hora).getTime() >= now)
@@ -142,7 +133,7 @@ function renderAppointments() {
       </div>
     </article>`;
   }).join('');
-  emptyState.hidden = filtered.length > 0;
+  if (emptyState) emptyState.hidden = filtered.length > 0;
 }
 
 function renderServiceList() {
@@ -155,47 +146,64 @@ function renderServiceList() {
       <span>${formatCurrency(service.valor)} · ${service.duracao_minutos} minutos</span>
     </div>
     <div class="management-actions">
-      <button class="row-edit" type="button" data-edit-service="${service.id}" title="Editar serviço">Editar</button>
       <button class="row-delete" type="button" data-delete-service="${service.id}" title="Excluir serviço">×</button>
     </div>
   </div>`).join('');
 }
 
-async function loadDashboard() {
-  const results = await Promise.all([
-    api('/api/servicos'),
-    api('/api/agendamentos'),
-    currentUser.tipo === 'master' ? api('/api/usuarios') : Promise.resolve([])
-  ]);
-  services = results[0];
-  appointments = results[1];
-  users = results[2];
+function loadDashboard() {
   renderServices();
   renderAppointments();
 }
 
-// Event Listeners básicos de controle de telas e formulários
+// Eventos de Autenticação (Login e Cadastro com localStorage)
 document.querySelectorAll('[data-auth-mode]').forEach((button) => {
   button.addEventListener('click', () => showAuth(button.dataset.authMode));
 });
 
-authForm.addEventListener('submit', async (event) => {
+authForm.addEventListener('submit', (event) => {
   event.preventDefault();
   const formData = new FormData(authForm);
+  const data = Object.fromEntries(formData);
   const submit = document.querySelector('#auth-submit');
   submit.disabled = true;
   setMessage(authMessage, '');
+
   try {
     if (authMode === 'register') {
-      await api('/api/cadastro', { method: 'POST', body: Object.fromEntries(formData) });
+      const existe = users.find((u) => u.email.toLowerCase() === data.email.toLowerCase());
+      if (existe) throw new Error('Este e-mail já está cadastrado.');
+
+      const novoUsuario = {
+        id: 'user-' + Date.now(),
+        nome: data.nome,
+        email: data.email,
+        senha: data.senha,
+        tipo: 'cliente'
+      };
+      users.push(novoUsuario);
+      localStorage.setItem('studio_users', JSON.stringify(users));
+
       authForm.reset();
       showAuth('login');
       setMessage(authMessage, 'Cadastro realizado com sucesso! Faça seu login.', true);
     } else {
-      const result = await api('/api/login', { method: 'POST', body: Object.fromEntries(formData) });
-      currentUser = result.usuario;
+      const usuarioEncontrado = users.find(
+        (u) => u.email.toLowerCase() === data.email.toLowerCase() && u.senha === data.senha
+      );
+
+      // Acesso direto para o admin padrão caso não esteja criado no storage
+      if (!usuarioEncontrado && data.email === 'prodrigosilvacel@gmail.com' && data.senha === 'w118187') {
+        currentUser = { id: 'admin-master', nome: 'Rodrigo Silva', email: 'prodrigosilvacel@gmail.com', tipo: 'master' };
+      } else if (usuarioEncontrado) {
+        currentUser = usuarioEncontrado;
+      } else {
+        throw new Error('E-mail ou senha incorretos.');
+      }
+
       renderApp();
-      await loadDashboard();
+      loadDashboard();
+      showToast('Bem-vindo ao sistema!');
     }
   } catch (error) {
     setMessage(authMessage, error.message);
@@ -203,16 +211,14 @@ authForm.addEventListener('submit', async (event) => {
     submit.disabled = false;
   }
 });
-// --- CONTROLE DE ABAS E NAVEGAÇÃO ---
+
+// Controle de Abas
 document.querySelectorAll('.main-nav button[data-view], .nav-link[data-view]').forEach((button) => {
   button.addEventListener('click', () => {
     const viewName = button.dataset.view;
-    
-    // Atualiza botões ativos na barra superior
     document.querySelectorAll('.main-nav button, .nav-link').forEach((btn) => btn.classList.remove('is-active'));
     button.classList.add('is-active');
 
-    // Mostra/oculta os painéis correspondentes
     document.querySelectorAll('.view-panel').forEach((panel) => {
       const isTarget = panel.id === `${viewName}-view`;
       panel.hidden = !isTarget;
@@ -221,96 +227,79 @@ document.querySelectorAll('.main-nav button[data-view], .nav-link[data-view]').f
   });
 });
 
-// --- LOGOUT DO SISTEMA ---
-const logoutButton = document.querySelector('#logout-button');
-if (logoutButton) {
-  logoutButton.addEventListener('click', () => {
-    currentUser = null;
-    appScreen.hidden = true;
-    authScreen.hidden = false;
-    authForm.reset();
-    showAuth('login');
-    showToast('Sessão encerrada com sucesso.');
-  });
-}
+// Logout
+document.querySelector('#logout-button')?.addEventListener('click', () => {
+  currentUser = null;
+  appScreen.hidden = true;
+  authScreen.hidden = false;
+  authForm.reset();
+  showAuth('login');
+  showToast('Sessão encerrada.');
+});
 
-// --- CADASTRO DE NOVO AGENDAMENTO PELO CLIENTE OU MASTER ---
-if (appointmentForm) {
-  appointmentForm.addEventListener('submit', async (event) => {
-    event.preventDefault();
-    const formData = new FormData(appointmentForm);
-    const submitBtn = document.querySelector('#reservation-submit');
-    if (submitBtn) submitBtn.disabled = true;
-    setMessage(appointmentMessage, '');
+// Criar Agendamento
+appointmentForm?.addEventListener('submit', (event) => {
+  event.preventDefault();
+  const formData = new FormData(appointmentForm);
+  const data = Object.fromEntries(formData);
+  const servicoObj = services.find(s => s.id == data.servico_id);
 
-    try {
-      const data = Object.fromEntries(formData);
-      await api('/api/agendamentos', {
-        method: 'POST',
-        body: {
-          servico_id: data.servico_id,
-          data_hora: data.data_hora,
-          usuario_id: currentUser.id,
-          usuario_nome: currentUser.nome
-        }
-      });
-      
-      appointmentForm.reset();
-      showToast('Agendamento realizado com sucesso!');
-      await loadDashboard();
-    } catch (error) {
-      setMessage(appointmentMessage, error.message);
-    } finally {
-      if (submitBtn) submitBtn.disabled = false;
-    }
-  });
-}
+  if (!servicoObj) {
+    setMessage(appointmentMessage, 'Selecione um procedimento válido.');
+    return;
+  }
 
-// --- CADASTRO DE SERVIÇOS NO PAINEL MASTER ---
-if (serviceForm) {
-  serviceForm.addEventListener('submit', async (event) => {
-    event.preventDefault();
-    const formData = new FormData(serviceForm);
-    const serviceMsg = document.querySelector('#service-message');
-    const submitBtn = serviceForm.querySelector('button[type="submit"]');
-    if (submitBtn) submitBtn.disabled = true;
-    if (serviceMsg) setMessage(serviceMsg, '');
+  const novoAgendamento = {
+    id: 'ag-' + Date.now(),
+    servico_id: data.servico_id,
+    servico_nome: servicoObj.nome,
+    valor: servicoObj.valor,
+    data_hora: data.data_hora,
+    usuario_id: currentUser.id,
+    usuario_nome: currentUser.nome
+  };
 
-    try {
-      const data = Object.fromEntries(formData);
-      await api('/api/servicos', {
-        method: 'POST',
-        body: {
-          nome: data.nome,
-          valor: parseFloat(data.valor),
-          duracao_minutos: parseInt(data.duracao_minutos, 10)
-        }
-      });
+  appointments.push(novoAgendamento);
+  localStorage.setItem('studio_appointments', JSON.stringify(appointments));
 
-      serviceForm.reset();
-      showToast('Serviço cadastrado com sucesso!');
-      await loadDashboard();
-    } catch (error) {
-      if (serviceMsg) setMessage(serviceMsg, error.message);
-    } finally {
-      if (submitBtn) submitBtn.disabled = false;
-    }
-  });
-}
+  appointmentForm.reset();
+  showToast('Agendamento realizado com sucesso!');
+  loadDashboard();
+});
 
-// --- CANCELAMENTO DE AGENDAMENTOS E EXCLUSÃO DE SERVIÇOS ---
-document.addEventListener('click', async (event) => {
+// Cadastrar Serviço (Painel Master)
+serviceForm?.addEventListener('submit', (event) => {
+  event.preventDefault();
+  const formData = new FormData(serviceForm);
+  const data = Object.fromEntries(formData);
+  const serviceMsg = document.querySelector('#service-message');
+
+  const novoServico = {
+    id: 'srv-' + Date.now(),
+    nome: data.nome,
+    valor: parseFloat(data.valor),
+    duracao_minutos: parseInt(data.duracao_minutos, 10)
+  };
+
+  services.push(novoServico);
+  localStorage.setItem('studio_services', JSON.stringify(services));
+
+  serviceForm.reset();
+  if (serviceMsg) setMessage(serviceMsg, 'Serviço cadastrado com sucesso!', true);
+  showToast('Serviço adicionado ao catálogo!');
+  loadDashboard();
+});
+
+// Ações de Excluir / Cancelar
+document.addEventListener('click', (event) => {
   const cancelBtn = event.target.closest('[data-cancel-appointment]');
   if (cancelBtn) {
     const id = cancelBtn.dataset.cancelAppointment;
     if (confirm('Deseja realmente cancelar este horário?')) {
-      try {
-        await api(`/api/agendamentos/${id}`, { method: 'DELETE' });
-        showToast('Agendamento cancelado.');
-        await loadDashboard();
-      } catch (error) {
-        showToast(error.message);
-      }
+      appointments = appointments.filter(a => a.id != id);
+      localStorage.setItem('studio_appointments', JSON.stringify(appointments));
+      showToast('Agendamento cancelado.');
+      loadDashboard();
     }
   }
 
@@ -318,13 +307,10 @@ document.addEventListener('click', async (event) => {
   if (deleteServiceBtn) {
     const id = deleteServiceBtn.dataset.deleteService;
     if (confirm('Deseja excluir este serviço do catálogo?')) {
-      try {
-        await api(`/api/servicos/${id}`, { method: 'DELETE' });
-        showToast('Serviço excluído.');
-        await loadDashboard();
-      } catch (error) {
-        showToast(error.message);
-      }
+      services = services.filter(s => s.id != id);
+      localStorage.setItem('studio_services', JSON.stringify(services));
+      showToast('Serviço excluído.');
+      loadDashboard();
     }
   }
 });

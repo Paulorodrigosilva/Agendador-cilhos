@@ -1,0 +1,205 @@
+const authScreen = document.querySelector('#auth-screen');
+const appScreen = document.querySelector('#app-screen');
+const authForm = document.querySelector('#auth-form');
+const authMessage = document.querySelector('#auth-message');
+const serviceSelect = document.querySelector('#service-select'); // Substituiu o resourceSelect
+const appointmentForm = document.querySelector('#appointment-form'); // Substituiu o reservationForm
+const appointmentMessage = document.querySelector('#appointment-message');
+const appointmentsList = document.querySelector('#appointment-list');
+const emptyState = document.querySelector('#empty-state');
+const serviceForm = document.querySelector('#service-form'); // Substituiu o resourceForm (Master cadastra os serviços e valores)
+const userForm = document.querySelector('#user-form');
+const dateStartFilter = document.querySelector('#date-start-filter');
+const dateEndFilter = document.querySelector('#date-end-filter');
+
+let currentUser = null;
+let services = []; // Lista de serviços (ex: Extensão de Cílios, Design de Sobrancelha)
+let appointments = []; // Agendamentos
+let users = [];
+let authMode = 'login';
+let editingAppointmentId = null;
+let editingServiceId = null;
+let editingUserId = null;
+let toastTimer;
+
+async function api(url, options = {}) {
+  const response = await fetch(url, {
+    ...options,
+    headers: { 'Content-Type': 'application/json', ...options.headers },
+    body: options.body ? JSON.stringify(options.body) : undefined
+  });
+  const isJson = response.headers.get('content-type')?.includes('application/json');
+  const payload = response.status === 204 ? {} : isJson ? await response.json() : {};
+  if (!response.ok) throw new Error(payload.mensagem || 'Não foi possível concluir a solicitação.');
+  if (!isJson && response.status !== 204) throw new Error('O servidor respondeu fora da API. Atualize a página e tente novamente.');
+  return payload;
+}
+
+function setMessage(element, text, success = false) {
+  element.textContent = text;
+  element.classList.toggle('is-success', success);
+}
+
+function showToast(message) {
+  const toast = document.querySelector('#toast');
+  toast.textContent = message;
+  toast.classList.add('is-visible');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => toast.classList.remove('is-visible'), 2800);
+}
+
+function formatDate(value, options = { day: '2-digit', month: 'short' }) {
+  return new Intl.DateTimeFormat('pt-BR', options).format(new Date(value));
+}
+
+function formatTime(value) {
+  return new Intl.DateTimeFormat('pt-BR', { hour: '2-digit', minute: '2-digit' }).format(new Date(value));
+}
+
+function formatCurrency(value) {
+  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
+}
+
+function escapeHtml(value = '') {
+  return String(value).replace(/[&<>"']/g, (character) => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  })[character]);
+}
+
+function showAuth(mode = 'login') {
+  authMode = mode;
+  const registering = mode === 'register';
+  document.querySelector('#name-field').hidden = !registering;
+  document.querySelector('#name-field input').required = registering;
+  document.querySelector('#auth-eyebrow').textContent = registering ? 'NOVO POR AQUI?' : 'BEM-VINDA AO STUDIO';
+  document.querySelector('#auth-title').textContent = registering ? 'Crie sua conta' : 'Acesse sua conta';
+  document.querySelector('#auth-description').textContent = registering
+    ? 'Cadastre-se para agendar seus horários com facilidade.'
+    : 'Entre para consultar sua agenda ou marcar um procedimento.';
+  document.querySelector('#auth-submit').innerHTML = registering
+    ? 'Cadastrar <span aria-hidden="true">↗</span>'
+    : 'Entrar <span aria-hidden="true">↗</span>';
+  document.querySelectorAll('[data-auth-mode]').forEach((button) => {
+    button.classList.toggle('is-active', button.dataset.authMode === mode);
+  });
+  setMessage(authMessage, '');
+}
+
+function renderApp() {
+  const isMaster = currentUser.tipo === 'master';
+  authScreen.hidden = true;
+  appScreen.hidden = false;
+  document.querySelector('#account-name').textContent = currentUser.nome;
+  document.querySelector('#account-avatar').textContent = currentUser.nome.trim().charAt(0).toUpperCase();
+  document.querySelector('#account-role').textContent = isMaster ? 'Profissional Master' : 'Cliente';
+  document.querySelectorAll('.admin-only').forEach((element) => { element.hidden = !isMaster; });
+  document.querySelector('#today-label').textContent = new Intl.DateTimeFormat('pt-BR', {
+    weekday: 'short', day: '2-digit', month: 'long'
+  }).format(new Date());
+}
+
+function renderServices() {
+  const selected = serviceSelect.value;
+  serviceSelect.innerHTML = '<option value="">Selecione um procedimento</option>' + services.map((service) => {
+    const label = `${service.nome} — ${formatCurrency(service.valor)}`;
+    return `<option value="${service.id}">${escapeHtml(label)} (${service.duracao_minutos} min)</option>`;
+  }).join('');
+  if (services.some((service) => String(service.id) === selected)) serviceSelect.value = selected;
+  document.querySelector('#stat-services').textContent = services.length;
+  renderServiceList();
+}
+
+function renderAppointments() {
+  const filter = document.querySelector('#appointment-filter').value;
+  const filtered = appointments.filter((item) => filter === 'todos' || item.servico_id == filter);
+  const now = Date.now();
+  const upcoming = appointments.filter((item) => new Date(item.data_hora).getTime() >= now)
+    .sort((a, b) => new Date(a.data_hora) - new Date(b.data_hora));
+  
+  const ownCount = appointments.filter((item) => item.usuario_id === currentUser.id).length;
+  document.querySelector('#stat-mine').textContent = ownCount;
+  document.querySelector('#stat-next').textContent = upcoming[0] ? formatDate(upcoming[0].data_hora) : '—';
+  document.querySelector('#stat-next-detail').textContent = upcoming[0]
+    ? `${formatTime(upcoming[0].data_hora)} · ${upcoming[0].servico_nome}` : 'Nenhum agendamento futuro';
+
+  appointmentsList.innerHTML = filtered.map((item) => {
+    const start = new Date(item.data_hora);
+    const month = new Intl.DateTimeFormat('pt-BR', { month: 'short' }).format(start).replace('.', '');
+    const canCancel = currentUser.tipo === 'master' || item.usuario_id === currentUser.id;
+    
+    return `<article class="reservation-item">
+      <div class="date-tile"><strong>${String(start.getDate()).padStart(2, '0')}</strong><span>${escapeHtml(month)}</span></div>
+      <div class="reservation-main">
+        <div class="reservation-title-row">
+          <strong class="reservation-title">${escapeHtml(item.servico_nome)}</strong>
+          <span class="type-tag">${formatCurrency(item.valor)}</span>
+        </div>
+        <p class="reservation-time">Horário: ${formatDate(item.data_hora, { day: '2-digit', month: 'short', year: 'numeric' })} às ${formatTime(item.data_hora)}</p>
+        <span class="reservation-owner">Cliente: ${escapeHtml(item.usuario_nome)}</span>
+      </div>
+      <div class="reservation-actions">
+        ${canCancel ? `<button class="cancel-button" type="button" data-cancel-appointment="${item.id}" title="Cancelar horário">×</button>` : ''}
+      </div>
+    </article>`;
+  }).join('');
+  emptyState.hidden = filtered.length > 0;
+}
+
+function renderServiceList() {
+  const list = document.querySelector('#service-list');
+  if (!list || currentUser?.tipo !== 'master') return;
+  list.innerHTML = services.map((service) => `<div class="management-row">
+    <span class="row-symbol">✨</span>
+    <div class="row-copy">
+      <strong>${escapeHtml(service.nome)}</strong>
+      <span>${formatCurrency(service.valor)} · ${service.duracao_minutos} minutos</span>
+    </div>
+    <div class="management-actions">
+      <button class="row-edit" type="button" data-edit-service="${service.id}" title="Editar serviço">Editar</button>
+      <button class="row-delete" type="button" data-delete-service="${service.id}" title="Excluir serviço">×</button>
+    </div>
+  </div>`).join('');
+}
+
+async function loadDashboard() {
+  const results = await Promise.all([
+    api('/api/servicos'),
+    api('/api/agendamentos'),
+    currentUser.tipo === 'master' ? api('/api/usuarios') : Promise.resolve([])
+  ]);
+  services = results[0];
+  appointments = results[1];
+  users = results[2];
+  renderServices();
+  renderAppointments();
+}
+
+// Event Listeners básicos de controle de telas e formulários
+document.querySelectorAll('[data-auth-mode]').forEach((button) => {
+  button.addEventListener('click', () => showAuth(button.dataset.authMode));
+});
+
+authForm.addEventListener('submit', async (event) => {
+  event.preventDefault();
+  const formData = new FormData(authForm);
+  const submit = document.querySelector('#auth-submit');
+  submit.disabled = true;
+  setMessage(authMessage, '');
+  try {
+    if (authMode === 'register') {
+      await api('/api/cadastro', { method: 'POST', body: Object.fromEntries(formData) });
+      authForm.reset();
+      showAuth('login');
+      setMessage(authMessage, 'Cadastro realizado com sucesso! Faça seu login.', true);
+    } else {
+      const result = await api('/api/login', { method: 'POST', body: Object.fromEntries(formData) });
+      currentUser = result.usuario;
+      renderApp();
+      await loadDashboard();
+    }
+  } catch (error) {
+    setMessage(authMessage, error.message);
+  } finally {
+    submit.disabled = false;
+  }
+});

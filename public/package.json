@@ -1,0 +1,8 @@
+{
+  "name": "agendador-cilhos",
+  "version": "1.0.0",
+  "description": "Sistema de agendamento para studio de cílios",
+  "dependencies": {
+    "express": "^4.19.2"
+  }
+}

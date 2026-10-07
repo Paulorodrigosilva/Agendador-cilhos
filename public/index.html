@@ -87,47 +87,66 @@
     </style>
   </head>
   <body>
-    <!-- TELA DE AUTENTICAÇÃO (LOGIN / CADASTRO) -->
+    <!-- TELA DE AUTENTICAÇÃO (MODERNA EM SPLIT-SCREEN) -->
     <main id="auth-screen" class="auth-layout">
-      <section class="auth-intro">
-        <div class="brand brand-light"><span class="brand-mark">S</span><span>Studio<span class="brand-period">.</span></span></div>
+      <section class="auth-intro" style="background: linear-gradient(135deg, #e879f9 0%, #a855f7 100%);">
+        <div class="brand brand-light">
+          <span class="brand-mark" style="background: white; color: #a855f7;">S</span>
+          <span>Studio<span class="brand-period" style="color: #fef08a;">.</span></span>
+        </div>
         <div class="intro-copy">
           <p class="eyebrow">BEM-VINDA AO STUDIO</p>
           <h1>O olhar perfeito,<br><span>na hora certa.</span></h1>
           <p class="intro-note">Agende procedimentos e consulte sua agenda com facilidade.</p>
         </div>
-        <div class="intro-foot"><span class="status-dot"></span> Atendimento em tempo real</div>
+        <div class="intro-foot">
+          <span class="status-dot"></span> Atendimento em tempo real
+        </div>
       </section>
-      
+
       <section class="auth-panel">
         <div class="auth-box">
-          <div class="brand brand-dark"><span class="brand-mark">S</span><span>studio<span class="brand-period">.</span></span></div>
+          <div class="brand brand-dark">
+            <span class="brand-mark" style="background: #a855f7; color: white;">S</span>
+            <span>studio<span class="brand-period">.</span></span>
+          </div>
           <p class="eyebrow" id="auth-eyebrow">BEM-VINDA DE VOLTA</p>
           <h2 id="auth-title">Acesse sua conta</h2>
           <p class="muted" id="auth-description">Entre para consultar sua agenda ou marcar um procedimento.</p>
       
-          <!-- Formulário com credenciais padrão de Administrador -->
           <form id="auth-form" class="form-stack">
-            <label class="field" id="name-field" hidden>Nome completo<input name="nome" autocomplete="name" maxlength="100" placeholder="Seu nome"></label>
-            <label class="field">E-mail<input name="email" type="email" autocomplete="email" required maxlength="150" value="prodrigosilvacel@gmail.com" placeholder="seu@email.com"></label>
-            <label class="field">Senha<input name="senha" type="password" autocomplete="current-password" required minlength="6" value="w118187" placeholder="Sua senha"></label>
-            <button class="button button-primary button-wide" type="submit" id="auth-submit">Entrar <span aria-hidden="true">↗</span></button>
+            <label class="field" id="name-field" hidden>
+              Nome completo
+              <input name="nome" autocomplete="name" maxlength="100" placeholder="Seu nome">
+            </label>
+            <label class="field">
+              E-mail
+              <input name="email" type="email" autocomplete="email" required maxlength="150" value="prodrigosilvacel@gmail.com" placeholder="seu@email.com">
+            </label>
+            <label class="field">
+              Senha
+              <input name="senha" type="password" autocomplete="current-password" required minlength="6" value="w118187" placeholder="Sua senha">
+            </label>
+            <button class="button button-primary button-wide" type="submit" id="auth-submit" style="background: #a855f7;">Entrar <span aria-hidden="true">↗</span></button>
             <p class="form-message" id="auth-message" role="status"></p>
           </form>
 
-          <div class="auth-switch" style="margin-top: 1rem; display: flex; gap: 1rem; justify-content: center;">
-            <button type="button" data-auth-mode="login" class="is-active" style="background:none; border:none; cursor:pointer; font-weight:600;">Já tenho conta</button>
-            <button type="button" data-auth-mode="register" style="background:none; border:none; cursor:pointer; font-weight:600;">Criar conta</button>
+          <div class="auth-switch" style="margin-top: 1.2rem; display: flex; gap: 1rem; justify-content: center;">
+            <button type="button" data-auth-mode="login" class="is-active" style="background:none; border:none; cursor:pointer; font-weight:600; color: #a855f7;">Já tenho conta</button>
+            <button type="button" data-auth-mode="register" style="background:none; border:none; cursor:pointer; font-weight:600; color: #64748b;">Criar conta</button>
           </div>
         </div>
         <p class="auth-caption">BELEZA E PRATICIDADE NO SEU DIA A DIA.</p>
       </section>
     </main>
 
-    <!-- TELA PRINCIPAL DO APLICATIVO -->
+    <!-- TELA PRINCIPAL DO APLICATIVO (APÓS O LOGIN) -->
     <div id="app-screen" class="app-shell" hidden>
       <header class="topbar">
-        <a class="brand brand-dark" href="#agenda" aria-label="Studio de Cílios, início"><span class="brand-mark">S</span><span>Studio de Cílios</span></a>
+        <a class="brand brand-dark" href="#agenda" aria-label="Studio de Cílios, início">
+          <span class="brand-mark" style="background: #a855f7; color: white;">S</span>
+          <span>Studio de Cílios</span>
+        </a>
         
         <nav class="main-nav" aria-label="Navegação principal">
           <button class="nav-link is-active" type="button" data-view="agenda">Agenda de Horários</button>
@@ -153,7 +172,7 @@
           <div class="today-chip"><span class="today-icon" aria-hidden="true">▦</span><span id="today-label"></span></div>
         </section>
 
-        <!-- DASHBOARD STATS (Monitoramento de Agendamentos, Valores e Serviços para o ADM) -->
+        <!-- DASHBOARD STATS (Monitoramento em tempo real para o Administrador e Usuários) -->
         <section class="stats-row" aria-label="Resumo da agenda">
           <article class="stat-block">
             <span class="stat-label">SERVIÇOS DISPONÍVEIS</span>
@@ -172,12 +191,12 @@
           </article>
         </section>
 
-        <!-- PAINEL 1: AGENDA E AGENDAMENTO (Para Clientes e ADM marcarem horários) -->
+        <!-- PAINEL 1: AGENDA E AGENDAMENTO (Onde usuários incluem suas reservas) -->
         <section class="view-panel is-visible" id="agenda-view">
           <div class="agenda-layout">
-            <!-- FORMULÁRIO DE NOVO AGENDAMENTO -->
             <section class="booking-panel card">
-              <div class="panel-heading"><span class="panel-icon">＋</span>
+              <div class="panel-heading">
+                <span class="panel-icon">＋</span>
                 <div>
                   <h3 id="booking-title">Novo Agendamento</h3>
                   <p id="booking-description">Escolha o procedimento de beleza e o horário desejado.</p>
@@ -195,14 +214,13 @@
                 </label>
                 
                 <div class="form-actions">
-                  <button id="reservation-submit" type="submit" class="button button-primary button-wide">Confirmar agendamento <span aria-hidden="true">↗</span></button>
+                  <button id="reservation-submit" type="submit" class="button button-primary button-wide" style="background: #a855f7;">Confirmar agendamento <span aria-hidden="true">↗</span></button>
                   <button id="cancel-edit" type="button" class="button button-secondary button-wide" hidden>Cancelar edição</button>
                 </div>
                 <p class="form-message" id="appointment-message" role="status"></p>
               </form>
             </section>
 
-            <!-- LISTAGEM DE AGENDAMENTOS -->
             <section class="reservations-panel card">
               <div class="filter-row" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
                 <h3>Horários Marcados</h3>
@@ -218,7 +236,7 @@
           </div>
         </section>
 
-        <!-- PAINEL 2: ADMINISTRAÇÃO MASTER (CADASTRO DE SERVIÇOS E VALORES) -->
+        <!-- PAINEL 2: ADMINISTRAÇÃO MASTER (Cadastros de Serviços, Valores e Duração) -->
         <section class="view-panel admin-only" id="cadastros-view" hidden>
           <div class="section-heading">
             <div>
@@ -229,7 +247,8 @@
           </div>
           <div class="management-grid">
             <section class="management-panel card">
-              <div class="panel-heading"><span class="panel-icon">⌂</span>
+              <div class="panel-heading">
+                <span class="panel-icon">⌂</span>
                 <div>
                   <h3>Cadastrar Novo Serviço</h3>
                   <p>Adicione novos procedimentos (ex: Volume Russo, Lash Lifting), defina valores em R$ e duração.</p>
@@ -246,7 +265,7 @@
                 <label class="field">Duração (em minutos)
                   <input type="number" name="duracao_minutos" required placeholder="90">
                 </label>
-                <button type="submit" class="button button-primary">Adicionar serviço <span aria-hidden="true">＋</span></button>
+                <button type="submit" class="button button-primary" style="background: #a855f7;">Adicionar serviço <span aria-hidden="true">＋</span></button>
                 <p class="form-message" id="service-message" role="status"></p>
               </form>
             </section>

@@ -203,3 +203,128 @@ authForm.addEventListener('submit', async (event) => {
     submit.disabled = false;
   }
 });
+// --- CONTROLE DE ABAS E NAVEGAÇÃO ---
+document.querySelectorAll('.main-nav button[data-view], .nav-link[data-view]').forEach((button) => {
+  button.addEventListener('click', () => {
+    const viewName = button.dataset.view;
+    
+    // Atualiza botões ativos na barra superior
+    document.querySelectorAll('.main-nav button, .nav-link').forEach((btn) => btn.classList.remove('is-active'));
+    button.classList.add('is-active');
+
+    // Mostra/oculta os painéis correspondentes
+    document.querySelectorAll('.view-panel').forEach((panel) => {
+      const isTarget = panel.id === `${viewName}-view`;
+      panel.hidden = !isTarget;
+      panel.classList.toggle('is-visible', isTarget);
+    });
+  });
+});
+
+// --- LOGOUT DO SISTEMA ---
+const logoutButton = document.querySelector('#logout-button');
+if (logoutButton) {
+  logoutButton.addEventListener('click', () => {
+    currentUser = null;
+    appScreen.hidden = true;
+    authScreen.hidden = false;
+    authForm.reset();
+    showAuth('login');
+    showToast('Sessão encerrada com sucesso.');
+  });
+}
+
+// --- CADASTRO DE NOVO AGENDAMENTO PELO CLIENTE OU MASTER ---
+if (appointmentForm) {
+  appointmentForm.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const formData = new FormData(appointmentForm);
+    const submitBtn = document.querySelector('#reservation-submit');
+    if (submitBtn) submitBtn.disabled = true;
+    setMessage(appointmentMessage, '');
+
+    try {
+      const data = Object.fromEntries(formData);
+      await api('/api/agendamentos', {
+        method: 'POST',
+        body: {
+          servico_id: data.servico_id,
+          data_hora: data.data_hora,
+          usuario_id: currentUser.id,
+          usuario_nome: currentUser.nome
+        }
+      });
+      
+      appointmentForm.reset();
+      showToast('Agendamento realizado com sucesso!');
+      await loadDashboard();
+    } catch (error) {
+      setMessage(appointmentMessage, error.message);
+    } finally {
+      if (submitBtn) submitBtn.disabled = false;
+    }
+  });
+}
+
+// --- CADASTRO DE SERVIÇOS NO PAINEL MASTER ---
+if (serviceForm) {
+  serviceForm.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const formData = new FormData(serviceForm);
+    const serviceMsg = document.querySelector('#service-message');
+    const submitBtn = serviceForm.querySelector('button[type="submit"]');
+    if (submitBtn) submitBtn.disabled = true;
+    if (serviceMsg) setMessage(serviceMsg, '');
+
+    try {
+      const data = Object.fromEntries(formData);
+      await api('/api/servicos', {
+        method: 'POST',
+        body: {
+          nome: data.nome,
+          valor: parseFloat(data.valor),
+          duracao_minutos: parseInt(data.duracao_minutos, 10)
+        }
+      });
+
+      serviceForm.reset();
+      showToast('Serviço cadastrado com sucesso!');
+      await loadDashboard();
+    } catch (error) {
+      if (serviceMsg) setMessage(serviceMsg, error.message);
+    } finally {
+      if (submitBtn) submitBtn.disabled = false;
+    }
+  });
+}
+
+// --- CANCELAMENTO DE AGENDAMENTOS E EXCLUSÃO DE SERVIÇOS ---
+document.addEventListener('click', async (event) => {
+  const cancelBtn = event.target.closest('[data-cancel-appointment]');
+  if (cancelBtn) {
+    const id = cancelBtn.dataset.cancelAppointment;
+    if (confirm('Deseja realmente cancelar este horário?')) {
+      try {
+        await api(`/api/agendamentos/${id}`, { method: 'DELETE' });
+        showToast('Agendamento cancelado.');
+        await loadDashboard();
+      } catch (error) {
+        showToast(error.message);
+      }
+    }
+  }
+
+  const deleteServiceBtn = event.target.closest('[data-delete-service]');
+  if (deleteServiceBtn) {
+    const id = deleteServiceBtn.dataset.deleteService;
+    if (confirm('Deseja excluir este serviço do catálogo?')) {
+      try {
+        await api(`/api/servicos/${id}`, { method: 'DELETE' });
+        showToast('Serviço excluído.');
+        await loadDashboard();
+      } catch (error) {
+        showToast(error.message);
+      }
+    }
+  }
+});

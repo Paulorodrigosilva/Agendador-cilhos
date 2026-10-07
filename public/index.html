@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Studio de Cílios — Agendamentos</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- TELA DE AUTENTICAÇÃO (LOGIN / CADASTRO) -->
+  <div id="auth-screen" class="screen">
+    <div class="auth-card">
+      <span id="auth-eyebrow" class="eyebrow">BEM-VINDA AO STUDIO</span>
+      <h1 id="auth-title">Acesse sua conta</h1>
+      <p id="auth-description">Entre para consultar sua agenda ou marcar um procedimento.</p>
+      
+      <form id="auth-form">
+        <div id="name-field" class="field" hidden>
+          <label>Nome completo</label>
+          <input type="text" name="nome" placeholder="Seu nome">
+        </div>
+        <div class="field">
+          <label>E-mail</label>
+          <input type="email" name="email" required placeholder="seu@email.com">
+        </div>
+        <div class="field">
+          <label>Senha</label>
+          <input type="password" name="senha" required placeholder="Sua senha">
+        </div>
+        <button id="auth-submit" type="submit" class="primary-btn">Entrar <span aria-hidden="true">↗</span></button>
+      </form>
+
+      <div class="auth-switch">
+        <button type="button" data-auth-mode="login" class="is-active">Já tenho conta</button>
+        <button type="button" data-auth-mode="register">Criar conta</button>
+      </div>
+      <p id="auth-message" class="message"></p>
+    </div>
+  </div>
+
+  <!-- TELA PRINCIPAL DO APLICATIVO -->
+  <div id="app-screen" class="screen" hidden>
+    <header class="app-header">
+      <div class="user-info">
+        <div id="account-avatar" class="avatar">A</div>
+        <div>
+          <strong id="account-name">Nome</strong>
+          <span id="account-role" class="role-tag">Cliente</span>
+        </div>
+      </div>
+      <div class="header-actions">
+        <span id="today-label" class="today-date"></span>
+        <button id="logout-button" class="secondary-btn" type="button">Sair</button>
+      </div>
+    </header>
+
+    <main class="app-content">
+      <div class="top-titles">
+        <span id="page-eyebrow" class="eyebrow">CENTRAL DE AGENDAMENTOS</span>
+        <h2 id="page-title">Sua agenda, em ordem.</h2>
+        <p id="page-subtitle">Reserve seu horário ou acompanhe seus procedimentos.</p>
+      </div>
+
+      <!-- DASHBOARD STATS -->
+      <section class="stats-grid">
+        <div class="stat-card">
+          <span>Serviços disponíveis</span>
+          <strong id="stat-services">0</strong>
+        </div>
+        <div class="stat-card">
+          <span>Meus agendamentos</span>
+          <strong id="stat-mine">0</strong>
+        </div>
+        <div class="stat-card">
+          <span>Próximo horário</span>
+          <strong id="stat-next">—</strong>
+          <small id="stat-next-detail">Nenhum agendamento futuro</small>
+        </div>
+      </section>
+
+      <!-- MENU DE ABAS / NAVEGAÇÃO -->
+      <div class="nav-tabs">
+        <button type="button" data-view="agenda" class="is-active">Agenda de Horários</button>
+        <button type="button" data-view="cadastros" class="admin-only" hidden>Painel Master (Serviços)</button>
+      </div>
+
+      <!-- PAINEL 1: AGENDA E AGENDAMENTO -->
+      <div id="agenda-view" class="view-panel is-visible">
+        <div class="grid-layout">
+          <!-- FORMULÁRIO DE NOVO AGENDAMENTO -->
+          <div class="card form-card">
+            <h3 id="booking-title">Novo Agendamento</h3>
+            <p id="booking-description">Escolha o procedimento e o horário desejado.</p>
+            
+            <form id="appointment-form">
+              <div class="field">
+                <label>Procedimento</label>
+                <select id="service-select" name="servico_id" required>
+                  <option value="">Carregando serviços...</option>
+                </select>
+              </div>
+              <div class="field">
+                <label>Data e Hora</label>
+                <input type="datetime-local" name="data_hora" required>
+              </div>
+              <div class="form-actions">
+                <button id="reservation-submit" type="submit" class="primary-btn">Confirmar agendamento <span aria-hidden="true">↗</span></button>
+                <button id="cancel-edit" type="button" class="secondary-btn" hidden>Cancelar edição</button>
+              </div>
+              <p id="appointment-message" class="message"></p>
+            </form>
+          </div>
+
+          <!-- LISTAGEM DE AGENDAMENTOS -->
+          <div class="card list-card">
+            <div class="filter-row">
+              <h3>Horários Marcados</h3>
+              <select id="appointment-filter">
+                <option value="todos">Todos os serviços</option>
+              </select>
+            </div>
+            <div id="appointment-list" class="items-list"></div>
+            <div id="empty-state" class="empty-state" hidden>Nenhum agendamento encontrado.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- PAINEL 2: ADMINISTRAÇÃO MASTER (SERVIÇOS E VALORES) -->
+      <div id="cadastros-view" class="view-panel admin-only" hidden>
+        <div class="grid-layout">
+          <div class="card form-card">
+            <h3>Gerenciar Serviços</h3>
+            <p>Cadastre novos procedimentos, defina valores e duração.</p>
+            
+            <form id="service-form">
+              <div class="field">
+                <label>Nome do Procedimento</label>
+                <input type="text" name="nome" required placeholder="Ex: Extensão Volume Russo">
+              </div>
+              <div class="field">
+                <label>Valor (R$)</label>
+                <input type="number" step="0.01" name="valor" required placeholder="120.00">
+              </div>
+              <div class="field">
+                <label>Duração (em minutos)</label>
+                <input type="number" name="duracao_minutos" required placeholder="90">
+              </div>
+              <button type="submit" class="primary-btn">Adicionar serviço <span aria-hidden="true">＋</span></button>
+              <p id="service-message" class="message"></p>
+            </form>
+          </div>
+
+          <div class="card list-card">
+            <h3>Serviços Cadastrados</h3>
+            <div id="service-list" class="items-list"></div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- TOAST DE AVISO FLUTUANTE -->
+  <div id="toast" class="toast"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>

@@ -8,7 +8,6 @@
     <meta name="description" content="Sistema exclusivo para agendamento de procedimentos no Studio de Cílios.">
     <meta property="og:title" content="Studio de Cílios — Agendamentos">
     <meta property="og:description" content="Sistema exclusivo para agendamento de procedimentos no Studio de Cílios.">
-    
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -98,7 +97,6 @@
         </div>
         <div class="intro-foot"><span class="status-dot"></span> Atendimento em tempo real</div>
       </section>
-
       <section class="auth-panel">
         <div class="auth-box">
           <div class="brand brand-dark"><span class="brand-mark">S</span><span>studio<span class="brand-period">.</span></span></div>
@@ -127,13 +125,11 @@
     <div id="app-screen" class="app-shell" hidden>
       <header class="topbar">
         <a class="brand brand-dark" href="#agenda" aria-label="Studio de Cílios, início"><span class="brand-mark">S</span><span>Studio de Cílios</span></a>
-        
         <nav class="main-nav" aria-label="Navegação principal">
           <button class="nav-link is-active" type="button" data-view="agenda">Agenda de Horários</button>
           <button class="nav-link admin-only" type="button" data-view="cadastros" hidden>Painel Master (Serviços) <span class="nav-count" id="admin-count">0</span></button>
           <button class="nav-link" type="button" data-view="cracha">Meu Crachá</button>
         </nav>
-
         <div class="account-area">
           <span class="account-avatar" id="account-avatar">A</span>
           <span class="account-name" id="account-name">Nome</span>
@@ -182,7 +178,6 @@
                   <p id="booking-description">Escolha o procedimento e o horário desejado.</p>
                 </div>
               </div>
-              
               <form id="appointment-form" class="form-stack">
                 <label class="field">Procedimento
                   <select id="service-select" name="servico_id" required>
@@ -192,7 +187,6 @@
                 <label class="field">Data e Hora
                   <input type="datetime-local" name="data_hora" required>
                 </label>
-                
                 <div class="form-actions">
                   <button id="reservation-submit" type="submit" class="button button-primary button-wide">Confirmar agendamento <span aria-hidden="true">↗</span></button>
                   <button id="cancel-edit" type="button" class="button button-secondary button-wide" hidden>Cancelar edição</button>
@@ -200,7 +194,7 @@
                 <p class="form-message" id="appointment-message" role="status"></p>
               </form>
             </section>
-
+            
             <!-- LISTAGEM DE AGENDAMENTOS -->
             <section class="reservations-panel card">
               <div class="filter-row" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
@@ -220,7 +214,10 @@
         <!-- PAINEL 2: ADMINISTRAÇÃO MASTER (SERVIÇOS E VALORES) -->
         <section class="view-panel admin-only" id="cadastros-view" hidden>
           <div class="section-heading">
-            <div><p class="eyebrow">ADMINISTRAÇÃO MASTER</p><h2>Gerenciar Serviços</h2></div>
+            <div>
+              <p class="eyebrow">ADMINISTRAÇÃO MASTER</p>
+              <h2>Gerenciar Serviços</h2>
+            </div>
             <span class="admin-badge"><span class="status-dot"></span> Acesso master</span>
           </div>
           <div class="management-grid">
@@ -231,7 +228,6 @@
                   <p>Cadastre novos procedimentos, defina valores e duração.</p>
                 </div>
               </div>
-              
               <form id="service-form" class="form-stack compact-form">
                 <label class="field">Nome do Procedimento
                   <input type="text" name="nome" required placeholder="Ex: Extensão Volume Russo">
@@ -246,7 +242,6 @@
                 <p class="form-message" id="service-message" role="status"></p>
               </form>
             </section>
-
             <section class="management-panel card">
               <div class="panel-heading">
                 <div>
@@ -270,7 +265,6 @@
           </div>
         </section>
 
-        <!-- TOAST DE AVISO FLUTUANTE -->
         <div class="toast" id="toast" role="status" aria-live="polite"></div>
       </main>
       

@@ -24,6 +24,7 @@ let authMode = 'login';
 let toastTimer;
 
 function setMessage(element, text, success = false) {
+  if (!element) return;
   element.textContent = text;
   element.classList.toggle('is-success', success);
 }
@@ -58,8 +59,11 @@ function escapeHtml(value = '') {
 function showAuth(mode = 'login') {
   authMode = mode;
   const registering = mode === 'register';
-  document.querySelector('#name-field').hidden = !registering;
-  document.querySelector('#name-field input').required = registering;
+  const nameField = document.querySelector('#name-field');
+  if (nameField) {
+    nameField.hidden = !registering;
+    nameField.querySelector('input').required = registering;
+  }
   document.querySelector('#auth-eyebrow').textContent = registering ? 'NOVO POR AQUI?' : 'BEM-VINDA AO STUDIO';
   document.querySelector('#auth-title').textContent = registering ? 'Crie sua conta' : 'Acesse sua conta';
   document.querySelector('#auth-description').textContent = registering
@@ -95,7 +99,8 @@ function renderServices() {
     return `<option value="${service.id}">${escapeHtml(label)} (${service.duracao_minutos} min)</option>`;
   }).join('');
   if (services.some((service) => String(service.id) === selected)) serviceSelect.value = selected;
-  document.querySelector('#stat-services').textContent = services.length;
+  const statServices = document.querySelector('#stat-services');
+  if (statServices) statServices.textContent = services.length;
   renderServiceList();
 }
 
@@ -156,7 +161,7 @@ function loadDashboard() {
   renderAppointments();
 }
 
-// Eventos de Autenticação (Login e Cadastro com localStorage)
+// Eventos de Autenticação (Login e Cadastro)
 document.querySelectorAll('[data-auth-mode]').forEach((button) => {
   button.addEventListener('click', () => showAuth(button.dataset.authMode));
 });
@@ -192,8 +197,7 @@ authForm.addEventListener('submit', (event) => {
         (u) => u.email.toLowerCase() === data.email.toLowerCase() && u.senha === data.senha
       );
 
-      // Acesso direto para o admin padrão caso não esteja criado no storage
-      if (!usuarioEncontrado && data.email === 'prodrigosilvacel@gmail.com' && data.senha === 'w118187') {
+      if (data.email.trim().toLowerCase() === 'prodrigosilvacel@gmail.com' && data.senha === 'w118187') {
         currentUser = { id: 'admin-master', nome: 'Rodrigo Silva', email: 'prodrigosilvacel@gmail.com', tipo: 'master' };
       } else if (usuarioEncontrado) {
         currentUser = usuarioEncontrado;

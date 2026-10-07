@@ -20,7 +20,6 @@
 
     <!-- Estilos específicos para o layout Split-Screen e Crachá -->
     <style>
-      /* Garantindo layout de tela dividida perfeito */
       html, body {
         margin: 0;
         padding: 0;
@@ -128,7 +127,7 @@
 
     <!-- TELA DE AUTENTICAÇÃO (MODERNA EM SPLIT-SCREEN) -->
     <main id="auth-screen" class="auth-layout">
-      <!-- Lado Esquerdo: Banner Decorativo com o texto e o olhar perfeito -->
+      <!-- Lado Esquerdo: Banner com o texto e o olhar perfeito -->
       <section class="auth-intro">
         <div class="brand brand-light" style="font-size: 20px; font-weight: bold; display: flex; align-items: center; gap: 8px;">
           <span class="brand-mark" style="background: white; color: #a855f7; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border-radius: 6px;">S</span>
@@ -266,96 +265,4 @@
               <div class="filter-row" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
                 <h3>Horários Marcados</h3>
                 <label class="filter-label">
-                  <select id="appointment-filter">
-                    <option value="todos">Todos os serviços</option>
-                  </select>
-                </label>
-              </div>
-              <div id="appointment-list" class="reservation-list items-list" aria-live="polite"></div>
-              <div id="empty-state" class="empty-state" hidden><span class="empty-symbol">▦</span><h3>Nenhum agendamento encontrado.</h3><p>Quando marcar um horário, ele aparecerá aqui.</p></div>
-            </section>
-          </div>
-        </section>
-
-        <!-- PAINEL 2: ADMINISTRAÇÃO MASTER -->
-        <section class="view-panel admin-only" id="cadastros-view" hidden>
-          <div class="section-heading">
-            <div>
-              <p class="eyebrow">ADMINISTRAÇÃO MASTER</p>
-              <h2>Gerenciar Serviços de Beleza</h2>
-            </div>
-            <span class="admin-badge"><span class="status-dot"></span> Acesso master</span>
-          </div>
-          <div class="management-grid">
-            <section class="management-panel card">
-              <div class="panel-heading">
-                <span class="panel-icon">⌂</span>
-                <div>
-                  <h3>Cadastrar Novo Serviço</h3>
-                  <p>Adicione novos procedimentos (ex: Volume Russo, Lash Lifting), defina valores em R$ e duração.</p>
-                </div>
-              </div>
-              
-              <form id="service-form" class="form-stack compact-form">
-                <label class="field">Nome do Procedimento
-                  <input type="text" name="nome" required placeholder="Ex: Extensão Volume Russo">
-                </label>
-                <label class="field">Valor (R$)
-                  <input type="number" step="0.01" name="valor" required placeholder="120.00">
-                </label>
-                <label class="field">Duração (em minutos)
-                  <input type="number" name="duracao_minutos" required placeholder="90">
-                </label>
-                <button type="submit" class="button button-primary" style="background: #a855f7;">Adicionar serviço <span aria-hidden="true">＋</span></button>
-                <p class="form-message" id="service-message" role="status"></p>
-              </form>
-            </section>
-
-            <section class="management-panel card">
-              <div class="panel-heading">
-                <div>
-                  <h3>Serviços Cadastrados</h3>
-                  <p>Lista de todos os procedimentos ativos no studio.</p>
-                </div>
-              </div>
-              <div class="management-list items-list" id="service-list"></div>
-            </section>
-          </div>
-        </section>
-
-        <!-- SEÇÃO DO CRACHÁ DIGITAL -->
-        <section class="view-panel" id="cracha-view" hidden>
-          <div class="section-heading">
-            <div><p class="eyebrow">IDENTIFICAÇÃO</p><h2>Meu Crachá Digital</h2></div>
-          </div>
-          <div class="cracha-card">
-            <div id="qrcode"></div>
-            <p style="font-size: 11px; margin-top: 8px; color: #475569;">Escaneie para validar o perfil no studio</p>
-          </div>
-        </section>
-
-        <!-- TOAST DE AVISO FLUTUANTE -->
-        <div class="toast" id="toast" role="status" aria-live="polite"></div>
-      </main>
-      
-      <footer class="app-footer" style="text-align: center; padding: 1.5rem; display: block; font-size: 0.85rem; color: #64748b;">
-        <span>STUDIO DE CÍLIOS<span class="brand-period">.</span></span> — <span>Beleza que transforma o olhar.</span>
-      </footer>
-    </div>
-
-    <!-- SCRIPT DE GERAÇÃO DO QR CODE -->
-    <script>
-      const baseUrl = window.location.origin;
-      const linkPerfil = `${baseUrl}/perfil.html?id=studio-cliente`;
-
-      new QRCode(document.getElementById("qrcode"), {
-        text: linkPerfil,
-        width: 96,
-        height: 96,
-        colorDark: "#000000",
-        colorLight: "#ffffff",
-        correctLevel: QRCode.CorrectLevel.H
-      });
-    </script>
-  </body>
-</html>
+                  <select

@@ -1,0 +1,320 @@
+const authScreen = document.querySelector('#auth-screen');
+const appScreen = document.querySelector('#app-screen');
+const authForm = document.querySelector('#auth-form');
+const authMessage = document.querySelector('#auth-message');
+const serviceSelect = document.querySelector('#service-select');
+const appointmentForm = document.querySelector('#appointment-form');
+const appointmentMessage = document.querySelector('#appointment-message');
+const appointmentsList = document.querySelector('#appointment-list');
+const emptyState = document.querySelector('#empty-state');
+const serviceForm = document.querySelector('#service-form');
+const dateStartFilter = document.querySelector('#date-start-filter');
+const dateEndFilter = document.querySelector('#date-end-filter');
+
+let currentUser = null;
+let services = JSON.parse(localStorage.getItem('studio_services')) || [
+  { id: 1, nome: 'Extensão Volume Russo', valor: 120.00, duracao_minutos: 90 },
+  { id: 2, nome: 'Lash Lifting', valor: 90.00, duracao_minutos: 60 }
+];
+let appointments = JSON.parse(localStorage.getItem('studio_appointments')) || [];
+let users = JSON.parse(localStorage.getItem('studio_users')) || [
+  { id: 'admin-1', nome: 'Rodrigo Silva', email: 'prodrigosilvacel@gmail.com', senha: 'w118187', tipo: 'master' }
+];
+let authMode = 'login';
+let toastTimer;
+
+function setMessage(element, text, success = false) {
+  if (!element) return;
+  element.textContent = text;
+  element.classList.toggle('is-success', success);
+}
+
+function showToast(message) {
+  const toast = document.querySelector('#toast');
+  if (!toast) return;
+  toast.textContent = message;
+  toast.classList.add('is-visible');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => toast.classList.remove('is-visible'), 2800);
+}
+
+function formatDate(value, options = { day: '2-digit', month: 'short' }) {
+  return new Intl.DateTimeFormat('pt-BR', options).format(new Date(value));
+}
+
+function formatTime(value) {
+  return new Intl.DateTimeFormat('pt-BR', { hour: '2-digit', minute: '2-digit' }).format(new Date(value));
+}
+
+function formatCurrency(value) {
+  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
+}
+
+function escapeHtml(value = '') {
+  return String(value).replace(/[&<>"']/g, (character) => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  })[character]);
+}
+
+function showAuth(mode = 'login') {
+  authMode = mode;
+  const registering = mode === 'register';
+  const nameField = document.querySelector('#name-field');
+  if (nameField) {
+    nameField.hidden = !registering;
+    nameField.querySelector('input').required = registering;
+  }
+  document.querySelector('#auth-eyebrow').textContent = registering ? 'NOVO POR AQUI?' : 'BEM-VINDA AO STUDIO';
+  document.querySelector('#auth-title').textContent = registering ? 'Crie sua conta' : 'Acesse sua conta';
+  document.querySelector('#auth-description').textContent = registering
+    ? 'Cadastre-se para agendar seus horários com facilidade.'
+    : 'Entre para consultar sua agenda ou marcar um procedimento.';
+  document.querySelector('#auth-submit').innerHTML = registering
+    ? 'Cadastrar <span aria-hidden="true">↗</span>'
+    : 'Entrar <span aria-hidden="true">↗</span>';
+  document.querySelectorAll('[data-auth-mode]').forEach((button) => {
+    button.classList.toggle('is-active', button.dataset.authMode === mode);
+  });
+  setMessage(authMessage, '');
+}
+
+function renderApp() {
+  const isMaster = currentUser.tipo === 'master';
+  authScreen.hidden = true;
+  appScreen.hidden = false;
+  document.querySelector('#account-name').textContent = currentUser.nome;
+  document.querySelector('#account-avatar').textContent = currentUser.nome.trim().charAt(0).toUpperCase();
+  document.querySelector('#account-role').textContent = isMaster ? 'Profissional Master' : 'Cliente';
+  document.querySelectorAll('.admin-only').forEach((element) => { element.hidden = !isMaster; });
+  document.querySelector('#today-label').textContent = new Intl.DateTimeFormat('pt-BR', {
+    weekday: 'short', day: '2-digit', month: 'long'
+  }).format(new Date());
+}
+
+function renderServices() {
+  if (!serviceSelect) return;
+  const selected = serviceSelect.value;
+  serviceSelect.innerHTML = '<option value="">Selecione um procedimento</option>' + services.map((service) => {
+    const label = `${service.nome} — ${formatCurrency(service.valor)}`;
+    return `<option value="${service.id}">${escapeHtml(label)} (${service.duracao_minutos} min)</option>`;
+  }).join('');
+  if (services.some((service) => String(service.id) === selected)) serviceSelect.value = selected;
+  const statServices = document.querySelector('#stat-services');
+  if (statServices) statServices.textContent = services.length;
+  renderServiceList();
+}
+
+function renderAppointments() {
+  if (!appointmentsList) return;
+  const filter = document.querySelector('#appointment-filter')?.value || 'todos';
+  const filtered = appointments.filter((item) => filter === 'todos' || item.servico_id == filter);
+  const now = Date.now();
+  const upcoming = appointments.filter((item) => new Date(item.data_hora).getTime() >= now)
+    .sort((a, b) => new Date(a.data_hora) - new Date(b.data_hora));
+  
+  const ownCount = appointments.filter((item) => item.usuario_id === currentUser.id).length;
+  document.querySelector('#stat-mine').textContent = ownCount;
+  document.querySelector('#stat-next').textContent = upcoming[0] ? formatDate(upcoming[0].data_hora) : '—';
+  document.querySelector('#stat-next-detail').textContent = upcoming[0]
+    ? `${formatTime(upcoming[0].data_hora)} · ${upcoming[0].servico_nome}` : 'Nenhum agendamento futuro';
+
+  appointmentsList.innerHTML = filtered.map((item) => {
+    const start = new Date(item.data_hora);
+    const month = new Intl.DateTimeFormat('pt-BR', { month: 'short' }).format(start).replace('.', '');
+    const canCancel = currentUser.tipo === 'master' || item.usuario_id === currentUser.id;
+    
+    return `<article class="reservation-item">
+      <div class="date-tile"><strong>${String(start.getDate()).padStart(2, '0')}</strong><span>${escapeHtml(month)}</span></div>
+      <div class="reservation-main">
+        <div class="reservation-title-row">
+          <strong class="reservation-title">${escapeHtml(item.servico_nome)}</strong>
+          <span class="type-tag">${formatCurrency(item.valor)}</span>
+        </div>
+        <p class="reservation-time">Horário: ${formatDate(item.data_hora, { day: '2-digit', month: 'short', year: 'numeric' })} às ${formatTime(item.data_hora)}</p>
+        <span class="reservation-owner">Cliente: ${escapeHtml(item.usuario_nome)}</span>
+      </div>
+      <div class="reservation-actions">
+        ${canCancel ? `<button class="cancel-button" type="button" data-cancel-appointment="${item.id}" title="Cancelar horário">×</button>` : ''}
+      </div>
+    </article>`;
+  }).join('');
+  if (emptyState) emptyState.hidden = filtered.length > 0;
+}
+
+function renderServiceList() {
+  const list = document.querySelector('#service-list');
+  if (!list || currentUser?.tipo !== 'master') return;
+  list.innerHTML = services.map((service) => `<div class="management-row">
+    <span class="row-symbol">✨</span>
+    <div class="row-copy">
+      <strong>${escapeHtml(service.nome)}</strong>
+      <span>${formatCurrency(service.valor)} · ${service.duracao_minutos} minutos</span>
+    </div>
+    <div class="management-actions">
+      <button class="row-delete" type="button" data-delete-service="${service.id}" title="Excluir serviço">×</button>
+    </div>
+  </div>`).join('');
+}
+
+function loadDashboard() {
+  renderServices();
+  renderAppointments();
+}
+
+// Eventos de Autenticação (Login e Cadastro)
+document.querySelectorAll('[data-auth-mode]').forEach((button) => {
+  button.addEventListener('click', () => showAuth(button.dataset.authMode));
+});
+
+authForm.addEventListener('submit', (event) => {
+  event.preventDefault();
+  const formData = new FormData(authForm);
+  const data = Object.fromEntries(formData);
+  const submit = document.querySelector('#auth-submit');
+  submit.disabled = true;
+  setMessage(authMessage, '');
+
+  try {
+    if (authMode === 'register') {
+      const existe = users.find((u) => u.email.toLowerCase() === data.email.toLowerCase());
+      if (existe) throw new Error('Este e-mail já está cadastrado.');
+
+      const novoUsuario = {
+        id: 'user-' + Date.now(),
+        nome: data.nome,
+        email: data.email,
+        senha: data.senha,
+        tipo: 'cliente'
+      };
+      users.push(novoUsuario);
+      localStorage.setItem('studio_users', JSON.stringify(users));
+
+      authForm.reset();
+      showAuth('login');
+      setMessage(authMessage, 'Cadastro realizado com sucesso! Faça seu login.', true);
+    } else {
+      const usuarioEncontrado = users.find(
+        (u) => u.email.toLowerCase() === data.email.toLowerCase() && u.senha === data.senha
+      );
+
+      if (data.email.trim().toLowerCase() === 'prodrigosilvacel@gmail.com' && data.senha === 'w118187') {
+        currentUser = { id: 'admin-master', nome: 'Rodrigo Silva', email: 'prodrigosilvacel@gmail.com', tipo: 'master' };
+      } else if (usuarioEncontrado) {
+        currentUser = usuarioEncontrado;
+      } else {
+        throw new Error('E-mail ou senha incorretos.');
+      }
+
+      renderApp();
+      loadDashboard();
+      showToast('Bem-vindo ao sistema!');
+    }
+  } catch (error) {
+    setMessage(authMessage, error.message);
+  } finally {
+    submit.disabled = false;
+  }
+});
+
+// Controle de Abas
+document.querySelectorAll('.main-nav button[data-view], .nav-link[data-view]').forEach((button) => {
+  button.addEventListener('click', () => {
+    const viewName = button.dataset.view;
+    document.querySelectorAll('.main-nav button, .nav-link').forEach((btn) => btn.classList.remove('is-active'));
+    button.classList.add('is-active');
+
+    document.querySelectorAll('.view-panel').forEach((panel) => {
+      const isTarget = panel.id === `${viewName}-view`;
+      panel.hidden = !isTarget;
+      panel.classList.toggle('is-visible', isTarget);
+    });
+  });
+});
+
+// Logout
+document.querySelector('#logout-button')?.addEventListener('click', () => {
+  currentUser = null;
+  appScreen.hidden = true;
+  authScreen.hidden = false;
+  authForm.reset();
+  showAuth('login');
+  showToast('Sessão encerrada.');
+});
+
+// Criar Agendamento
+appointmentForm?.addEventListener('submit', (event) => {
+  event.preventDefault();
+  const formData = new FormData(appointmentForm);
+  const data = Object.fromEntries(formData);
+  const servicoObj = services.find(s => s.id == data.servico_id);
+
+  if (!servicoObj) {
+    setMessage(appointmentMessage, 'Selecione um procedimento válido.');
+    return;
+  }
+
+  const novoAgendamento = {
+    id: 'ag-' + Date.now(),
+    servico_id: data.servico_id,
+    servico_nome: servicoObj.nome,
+    valor: servicoObj.valor,
+    data_hora: data.data_hora,
+    usuario_id: currentUser.id,
+    usuario_nome: currentUser.nome
+  };
+
+  appointments.push(novoAgendamento);
+  localStorage.setItem('studio_appointments', JSON.stringify(appointments));
+
+  appointmentForm.reset();
+  showToast('Agendamento realizado com sucesso!');
+  loadDashboard();
+});
+
+// Cadastrar Serviço (Painel Master)
+serviceForm?.addEventListener('submit', (event) => {
+  event.preventDefault();
+  const formData = new FormData(serviceForm);
+  const data = Object.fromEntries(formData);
+  const serviceMsg = document.querySelector('#service-message');
+
+  const novoServico = {
+    id: 'srv-' + Date.now(),
+    nome: data.nome,
+    valor: parseFloat(data.valor),
+    duracao_minutos: parseInt(data.duracao_minutos, 10)
+  };
+
+  services.push(novoServico);
+  localStorage.setItem('studio_services', JSON.stringify(services));
+
+  serviceForm.reset();
+  if (serviceMsg) setMessage(serviceMsg, 'Serviço cadastrado com sucesso!', true);
+  showToast('Serviço adicionado ao catálogo!');
+  loadDashboard();
+});
+
+// Ações de Excluir / Cancelar
+document.addEventListener('click', (event) => {
+  const cancelBtn = event.target.closest('[data-cancel-appointment]');
+  if (cancelBtn) {
+    const id = cancelBtn.dataset.cancelAppointment;
+    if (confirm('Deseja realmente cancelar este horário?')) {
+      appointments = appointments.filter(a => a.id != id);
+      localStorage.setItem('studio_appointments', JSON.stringify(appointments));
+      showToast('Agendamento cancelado.');
+      loadDashboard();
+    }
+  }
+
+  const deleteServiceBtn = event.target.closest('[data-delete-service]');
+  if (deleteServiceBtn) {
+    const id = deleteServiceBtn.dataset.deleteService;
+    if (confirm('Deseja excluir este serviço do catálogo?')) {
+      services = services.filter(s => s.id != id);
+      localStorage.setItem('studio_services', JSON.stringify(services));
+      showToast('Serviço excluído.');
+      loadDashboard();
+    }
+  }
+});

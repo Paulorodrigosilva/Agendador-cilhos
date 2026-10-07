@@ -97,6 +97,7 @@
         </div>
         <div class="intro-foot"><span class="status-dot"></span> Atendimento em tempo real</div>
       </section>
+      
       <section class="auth-panel">
         <div class="auth-box">
           <div class="brand brand-dark"><span class="brand-mark">S</span><span>studio<span class="brand-period">.</span></span></div>
@@ -104,10 +105,11 @@
           <h2 id="auth-title">Acesse sua conta</h2>
           <p class="muted" id="auth-description">Entre para consultar sua agenda ou marcar um procedimento.</p>
       
+          <!-- Formulário com e-mail e senha padrão do Administrador -->
           <form id="auth-form" class="form-stack">
             <label class="field" id="name-field" hidden>Nome completo<input name="nome" autocomplete="name" maxlength="100" placeholder="Seu nome"></label>
-            <label class="field">E-mail<input name="email" type="email" autocomplete="email" required maxlength="150" placeholder="seu@email.com"></label>
-            <label class="field">Senha<input name="senha" type="password" autocomplete="current-password" required minlength="6" placeholder="Sua senha"></label>
+            <label class="field">E-mail<input name="email" type="email" autocomplete="email" required maxlength="150" value="prodrigosilvacel@gmail.com" placeholder="seu@email.com"></label>
+            <label class="field">Senha<input name="senha" type="password" autocomplete="current-password" required minlength="6" value="w118187" placeholder="Sua senha"></label>
             <button class="button button-primary button-wide" type="submit" id="auth-submit">Entrar <span aria-hidden="true">↗</span></button>
             <p class="form-message" id="auth-message" role="status"></p>
           </form>

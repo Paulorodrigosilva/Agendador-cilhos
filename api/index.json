@@ -1,0 +1,94 @@
+const express = require('express');
+const app = express();
+
+app.use(express.json());
+
+// Simulação de banco em memória para ambiente Serverless (Recomenda-se migrar para Supabase/PostgreSQL em produção)
+let usuarios = [
+  { id: 1, nome: 'Ana Master', email: 'master@studio.com', senha: '123', tipo: 'master' },
+  { id: 2, nome: 'Cliente Teste', email: 'cliente@studio.com', senha: '123', tipo: 'cliente' }
+];
+
+let servicos = [
+  { id: 1, nome: 'Extensão de Cílios - Fio a Fio', valor: 90.00, duracao_minutos: 90 },
+  { id: 2, nome: 'Volume Russo', valor: 140.00, duracao_minutos: 120 }
+];
+
+let agendamentos = [];
+
+// Rotas de Autenticação
+app.post('/api/login', (req, res) => {
+  const { email, senha } = req.body;
+  const usuario = usuarios.find(u => u.email === email && u.senha === senha);
+  if (!usuario) return res.status(401).json({ mensagem: 'E-mail ou senha incorretos.' });
+  res.json({ usuario: { id: usuario.id, nome: usuario.nome, email: usuario.email, tipo: usuario.tipo } });
+});
+
+app.post('/api/cadastro', (req, res) => {
+  const { nome, email, senha } = req.body;
+  if (usuarios.some(u => u.email === email)) {
+    return res.status(400).json({ mensagem: 'Este e-mail já está cadastrado.' });
+  }
+  const novoUsuario = { id: Date.now(), nome, email, senha, tipo: 'cliente' };
+  usuarios.push(novoUsuario);
+  res.status(201).json({ mensagem: 'Cadastrado com sucesso!' });
+});
+
+app.get('/api/sessao', (req, res) => {
+  // Simulação simples de sessão ativa retornando o primeiro usuário para teste rápido
+  res.json({ usuario: null });
+});
+
+app.post('/api/logout', (req, res) => {
+  res.status(204).send();
+});
+
+// Rotas de Serviços (Master)
+app.get('/api/servicos', (req, res) => {
+  res.json(servicos);
+});
+
+app.post('/api/servicos', (req, res) => {
+  const { nome, valor, duracao_minutos } = req.body;
+  const novoServico = { id: Date.now(), nome, valor: Number(valor), duracao_minutos: Number(duracao_minutos) };
+  servicos.push(novoServico);
+  res.status(201).json(novoServico);
+});
+
+app.delete('/api/servicos/:id', (req, res) => {
+  const id = Number(req.params.id);
+  servicos = servicos.filter(s => s.id !== id);
+  res.status(204).send();
+});
+
+// Rotas de Agendamentos
+app.get('/api/agendamentos', (req, res) => {
+  const lista = agendamentos.map(ag => {
+    const serv = servicos.find(s => s.id === Number(ag.servico_id)) || {};
+    const usr = usuarios.find(u => u.id === Number(ag.usuario_id)) || {};
+    return {
+      ...ag,
+      servico_nome: serv.nome || 'Procedimento',
+      valor: serv.valor || 0,
+      usuario_nome: usr.nome || 'Cliente'
+    };
+  });
+  res.json(lista);
+});
+
+app.post('/api/agendamentos', (req, res) => {
+  const { servico_id, data_hora } = req.body;
+  // Para fins de teste, associamos ao usuário padrão ou fixo se não houver cookie de sessão real implementado
+  const novoAgendamento = { id: Date.now(), usuario_id: 2, servico_id: Number(servico_id), data_hora };
+  agendamentos.push(novoAgendamento);
+  res.status(201).json(novoAgendamento);
+});
+
+app.delete('/api/agendamentos/:id', (req, res) => {
+  const id = Number(req.params.id);
+  agendamentos = agendamentos.filter(a => a.id !== id);
+  res.status(204).send();
+});
+
+// Exporta o app para o Vercel Serverless Function
+module.exports = app;

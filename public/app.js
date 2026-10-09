@@ -1,3 +1,41 @@
+// Configuração da MongoDB Data API
+const MONGODB_CONFIG = {
+  // ATENÇÃO: Substitua abaixo pela sua URL correta do Endpoint da Data API obtida no painel do Atlas
+  endpoint: "https://us-east-1.data.mongodb-api.com/app/data-xxxxx/endpoint/data/v1", 
+  apiKey: "al-zMj5QLeu1LFPt6NQxFC3NWNihfS4y8vxth0K4rbtXke",
+  dataSource: "Cluster0",
+  database: "studio_db" 
+};
+
+// Função genérica para comunicar com o MongoDB Atlas via Data API
+async function mongoQuery(collection, action, filter = {}, document = {}, update = {}) {
+  const url = `${MONGODB_CONFIG.endpoint}/action/${action}`;
+  const body = {
+    dataSource: MONGODB_CONFIG.dataSource,
+    database: MONGODB_CONFIG.database,
+    collection: collection,
+    ...Object.keys(filter).length && { filter },
+    ...Object.keys(document).length && { document },
+    ...Object.keys(update).length && { update }
+  };
+
+  try {
+    const response = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Access-Control-Request-Headers": "*",
+        "api-key": MONGODB_CONFIG.apiKey
+      },
+      body: JSON.stringify(body)
+    });
+    return await response.json();
+  } catch (error) {
+    console.error("Erro na requisição ao MongoDB:", error);
+    return null;
+  }
+}
+
 const authScreen = document.querySelector('#auth-screen');
 const appScreen = document.querySelector('#app-screen');
 const authForm = document.querySelector('#auth-form');
@@ -12,16 +50,37 @@ const dateStartFilter = document.querySelector('#date-start-filter');
 const dateEndFilter = document.querySelector('#date-end-filter');
 
 let currentUser = null;
-let services = JSON.parse(localStorage.getItem('studio_services')) || [
-  { id: 1, nome: 'Extensão Volume Russo', valor: 120.00, duracao_minutos: 90 },
-  { id: 2, nome: 'Lash Lifting', valor: 90.00, duracao_minutos: 60 }
-];
-let appointments = JSON.parse(localStorage.getItem('studio_appointments')) || [];
-let users = JSON.parse(localStorage.getItem('studio_users')) || [
-  { id: 'admin-1', nome: 'Rodrigo Silva', email: 'prodrigosilvacel@gmail.com', senha: 'w118187', tipo: 'master' }
-];
+let services = [];
+let appointments = [];
+let users = [];
 let authMode = 'login';
 let toastTimer;
+
+// Carregar dados iniciais do banco ao abrir a página
+async function initDatabaseData() {
+  const srvRes = await mongoQuery("services", "find", {});
+  if (srvRes && srvRes.documents && srvRes.documents.length > 0) {
+    services = srvRes.documents;
+  } else {
+    // Insere os padrões caso a collection esteja vazia
+    services = [
+      { id: 1, nome: 'Extensão Volume Russo', valor: 120.00, duracao_minutos: 90 },
+      { id: 2, nome: 'Lash Lifting', valor: 90.00, duracao_minutos: 60 }
+    ];
+    for (const s of services) {
+      await mongoQuery("services", "insertOne", {}, s);
+    }
+  }
+
+  const appRes = await mongoQuery("appointments", "find", {});
+  if (appRes && appRes.documents) appointments = appRes.documents;
+
+  const usrRes = await mongoQuery("users", "find", {});
+  if (usrRes && usrRes.documents) users = usrRes.documents;
+
+  renderServices();
+}
+initDatabaseData();
 
 function setMessage(element, text, success = false) {
   if (!element) return;
@@ -96,9 +155,9 @@ function renderServices() {
   const selected = serviceSelect.value;
   serviceSelect.innerHTML = '<option value="">Selecione um procedimento</option>' + services.map((service) => {
     const label = `${service.nome} — ${formatCurrency(service.valor)}`;
-    return `<option value="${service.id}">${escapeHtml(label)} (${service.duracao_minutos} min)</option>`;
+    return `<option value="${service.id || service._id}">${escapeHtml(label)} (${service.duracao_minutos} min)</option>`;
   }).join('');
-  if (services.some((service) => String(service.id) === selected)) serviceSelect.value = selected;
+  if (services.some((service) => String(service.id || service._id) === selected)) serviceSelect.value = selected;
   const statServices = document.querySelector('#stat-services');
   if (statServices) statServices.textContent = services.length;
   renderServiceList();
@@ -151,12 +210,18 @@ function renderServiceList() {
       <span>${formatCurrency(service.valor)} · ${service.duracao_minutos} minutos</span>
     </div>
     <div class="management-actions">
-      <button class="row-delete" type="button" data-delete-service="${service.id}" title="Excluir serviço">×</button>
+      <button class="row-delete" type="button" data-delete-service="${service.id || service._id}" title="Excluir serviço">×</button>
     </div>
   </div>`).join('');
 }
 
-function loadDashboard() {
+async function loadDashboard() {
+  const srvRes = await mongoQuery("services", "find", {});
+  if (srvRes && srvRes.documents) services = srvRes.documents;
+
+  const appRes = await mongoQuery("appointments", "find", {});
+  if (appRes && appRes.documents) appointments = appRes.documents;
+
   renderServices();
   renderAppointments();
 }
@@ -166,7 +231,7 @@ document.querySelectorAll('[data-auth-mode]').forEach((button) => {
   button.addEventListener('click', () => showAuth(button.dataset.authMode));
 });
 
-authForm.addEventListener('submit', (event) => {
+authForm.addEventListener('submit', async (event) => {
   event.preventDefault();
   const formData = new FormData(authForm);
   const data = Object.fromEntries(formData);
@@ -175,6 +240,9 @@ authForm.addEventListener('submit', (event) => {
   setMessage(authMessage, '');
 
   try {
+    const usrRes = await mongoQuery("users", "find", {});
+    if (usrRes && usrRes.documents) users = usrRes.documents;
+
     if (authMode === 'register') {
       const existe = users.find((u) => u.email.toLowerCase() === data.email.toLowerCase());
       if (existe) throw new Error('Este e-mail já está cadastrado.');
@@ -186,8 +254,9 @@ authForm.addEventListener('submit', (event) => {
         senha: data.senha,
         tipo: 'cliente'
       };
+      
+      await mongoQuery("users", "insertOne", {}, novoUsuario);
       users.push(novoUsuario);
-      localStorage.setItem('studio_users', JSON.stringify(users));
 
       authForm.reset();
       showAuth('login');
@@ -206,7 +275,7 @@ authForm.addEventListener('submit', (event) => {
       }
 
       renderApp();
-      loadDashboard();
+      await loadDashboard();
       showToast('Bem-vindo ao sistema!');
     }
   } catch (error) {
@@ -242,11 +311,11 @@ document.querySelector('#logout-button')?.addEventListener('click', () => {
 });
 
 // Criar Agendamento
-appointmentForm?.addEventListener('submit', (event) => {
+appointmentForm?.addEventListener('submit', async (event) => {
   event.preventDefault();
   const formData = new FormData(appointmentForm);
   const data = Object.fromEntries(formData);
-  const servicoObj = services.find(s => s.id == data.servico_id);
+  const servicoObj = services.find(s => (s.id == data.servico_id || s._id == data.servico_id));
 
   if (!servicoObj) {
     setMessage(appointmentMessage, 'Selecione um procedimento válido.');
@@ -263,16 +332,16 @@ appointmentForm?.addEventListener('submit', (event) => {
     usuario_nome: currentUser.nome
   };
 
+  await mongoQuery("appointments", "insertOne", {}, novoAgendamento);
   appointments.push(novoAgendamento);
-  localStorage.setItem('studio_appointments', JSON.stringify(appointments));
 
   appointmentForm.reset();
   showToast('Agendamento realizado com sucesso!');
-  loadDashboard();
+  await loadDashboard();
 });
 
 // Cadastrar Serviço (Painel Master)
-serviceForm?.addEventListener('submit', (event) => {
+serviceForm?.addEventListener('submit', async (event) => {
   event.preventDefault();
   const formData = new FormData(serviceForm);
   const data = Object.fromEntries(formData);
@@ -282,39 +351,4 @@ serviceForm?.addEventListener('submit', (event) => {
     id: 'srv-' + Date.now(),
     nome: data.nome,
     valor: parseFloat(data.valor),
-    duracao_minutos: parseInt(data.duracao_minutos, 10)
-  };
-
-  services.push(novoServico);
-  localStorage.setItem('studio_services', JSON.stringify(services));
-
-  serviceForm.reset();
-  if (serviceMsg) setMessage(serviceMsg, 'Serviço cadastrado com sucesso!', true);
-  showToast('Serviço adicionado ao catálogo!');
-  loadDashboard();
-});
-
-// Ações de Excluir / Cancelar
-document.addEventListener('click', (event) => {
-  const cancelBtn = event.target.closest('[data-cancel-appointment]');
-  if (cancelBtn) {
-    const id = cancelBtn.dataset.cancelAppointment;
-    if (confirm('Deseja realmente cancelar este horário?')) {
-      appointments = appointments.filter(a => a.id != id);
-      localStorage.setItem('studio_appointments', JSON.stringify(appointments));
-      showToast('Agendamento cancelado.');
-      loadDashboard();
-    }
-  }
-
-  const deleteServiceBtn = event.target.closest('[data-delete-service]');
-  if (deleteServiceBtn) {
-    const id = deleteServiceBtn.dataset.deleteService;
-    if (confirm('Deseja excluir este serviço do catálogo?')) {
-      services = services.filter(s => s.id != id);
-      localStorage.setItem('studio_services', JSON.stringify(services));
-      showToast('Serviço excluído.');
-      loadDashboard();
-    }
-  }
-});
+    duracao_minutos: parseInt(data.duracao_minutos, 10
